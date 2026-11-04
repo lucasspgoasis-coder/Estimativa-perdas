@@ -667,6 +667,58 @@
             return `<img class="report-metrics" alt="${escapeXml(items.map(([label, value]) => `${label}: ${value}`).join('; '))}" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}">`;
         }
 
+        function reportComparisonChart() {
+            const colors = ['#047857', '#0284c7', '#d97706', '#9333ea', '#e11d48', '#475569'];
+            const entries = visibleBlocks.map(name => ({
+                name,
+                total: lossCauses.reduce((sum, cause) => sum + (blockData[name].causes[cause.id].quantity || 0), 0)
+            })).filter(entry => entry.total > 0).sort((a, b) => b.total - a.total);
+            const causes = lossCauses.filter(cause => entries.some(entry => blockData[entry.name].causes[cause.id].quantity > 0));
+            const total = entries.reduce((sum, entry) => sum + entry.total, 0);
+            const causeTotals = causes.map(cause => ({
+                label: cause.label,
+                total: entries.reduce((sum, entry) => sum + (blockData[entry.name].causes[cause.id].quantity || 0), 0)
+            })).sort((a, b) => b.total - a.total);
+            const maximum = Math.max(...entries.map(entry => entry.total), 1);
+            const magnitude = 10 ** Math.floor(Math.log10(maximum));
+            const step = Math.max(1, Math.ceil(maximum * 1.15 / magnitude / 5) * magnitude);
+            const axisMax = step * 5;
+            const plotX = 110, plotWidth = 1300, plotHeight = 400, baseline = 480;
+            const height = 700;
+            const slotWidth = plotWidth / Math.max(entries.length, 1);
+            const columnWidth = Math.min(110, slotWidth * .62);
+            const legend = causes.map((cause, index) => {
+                const x = 110 + (index % 3) * 435;
+                const y = 626 + Math.floor(index / 3) * 38;
+                return `<rect x="${x}" y="${y - 16}" width="20" height="20" rx="4" fill="${colors[lossCauses.indexOf(cause)]}"/><text x="${x + 30}" y="${y}" font-size="22" fill="#334155">${cause.label}</text>`;
+            }).join('');
+            const ticks = [0, .2, .4, .6, .8, 1].map(fraction => {
+                const y = baseline - plotHeight * fraction;
+                return `<line x1="${plotX}" y1="${y}" x2="1410" y2="${y}" stroke="#e2e8f0" stroke-dasharray="${fraction ? '5 7' : '0'}"/><text x="94" y="${y + 6}" text-anchor="end" font-size="18" fill="#64748b">${Math.round(axisMax * fraction).toLocaleString('pt-BR')}</text>`;
+            }).join('');
+            const rows = entries.map((entry, index) => {
+                const center = plotX + slotWidth * (index + .5);
+                const x = center - columnWidth / 2;
+                let y = baseline;
+                const bars = causes.map(cause => {
+                    const qty = blockData[entry.name].causes[cause.id].quantity || 0;
+                    const segmentHeight = qty / axisMax * plotHeight;
+                    y -= segmentHeight;
+                    return `<rect x="${x}" y="${y}" width="${columnWidth}" height="${segmentHeight}" fill="${colors[lossCauses.indexOf(cause)]}"/>`;
+                }).join('');
+                const value = entry.total.toLocaleString('pt-BR');
+                const valueFit = value.length * 13 > slotWidth - 8 ? `textLength="${slotWidth - 8}" lengthAdjust="spacingAndGlyphs"` : '';
+                return `${index === 0 ? `<rect x="${center - slotWidth * .44}" y="62" width="${slotWidth * .88}" height="500" rx="14" fill="#ecfdf5"/>` : ''}${bars}<text x="${center}" y="${y - 14}" text-anchor="middle" font-size="24" font-weight="800" fill="#0f172a" ${valueFit}>${value}</text><text x="${center}" y="516" text-anchor="middle" font-size="${entries.length > 10 ? 17 : 23}" font-weight="700" fill="#334155">${entry.name}</text><text x="${center}" y="546" text-anchor="middle" font-size="${entries.length > 10 ? 17 : 21}" font-weight="700" fill="#047857">${(entry.total / total * 100).toFixed(1)}%</text>`;
+            }).join('');
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1460" height="${height}" viewBox="0 0 1460 ${height}" font-family="Arial, sans-serif"><text x="110" y="32" font-size="20" font-weight="700" fill="#475569">CABEÇAS PERDIDAS</text>${entries.length ? ticks + rows + legend : '<text x="730" y="320" text-anchor="middle" font-size="24" fill="#64748b">Sem perdas registradas para comparar</text>'}</svg>`;
+            const insights = reportMetricCards([
+                ['PERDAS CONTABILIZADAS', `${total.toLocaleString('pt-BR')} un`, '#be123c'],
+                ['BLOCO COM MAIOR PERDA', entries.length ? `${entries[0].name} · ${(entries[0].total / total * 100).toFixed(1)}%` : 'Sem perdas', '#065f46'],
+                ['PRINCIPAL CAUSA', causeTotals.length ? `${causeTotals[0].label} · ${(causeTotals[0].total / total * 100).toFixed(1)}%` : 'Sem perdas', '#334155']
+            ]);
+            return `<div class="bg-white space-y-3"><h3 style="font-size:28px;font-weight:800;color:#065f46">Panorama comparativo das perdas</h3><p style="font-size:18px;line-height:1.6;color:#475569">Blocos com perdas, ordenados do maior para o menor total. A altura de cada coluna representa a quantidade perdida e as cores identificam as causas. Os percentuais abaixo dos blocos indicam sua participação nas perdas gerais.</p>${insights}<div class="report-chart"><img alt="Colunas verticais comparando perdas por bloco, composição por causa, totais e participação nas perdas gerais" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}"></div></div>`;
+        }
+
         function prepareReportData() {
             document.getElementById('report-date-time').innerText = `Gerado em: ${new Date().toLocaleString('pt-BR')}`;
             let planted = 0, lost = 0;
@@ -675,13 +727,12 @@
                 lossCauses.forEach(cause => { lost += blockData[name].causes[cause.id].quantity || 0; });
             });
             document.getElementById('report-kpi-cards').innerHTML = reportMetricCards([
-                ['TOTAL PLANTADO', planted.toLocaleString('pt-BR'), '#065f46'],
                 ['CABEÇAS PERDIDAS', lost.toLocaleString('pt-BR'), '#be123c'],
                 ['PERDA GLOBAL', `${planted > 0 ? (lost / planted * 100).toFixed(1) : '0.0'}%`, '#b45309'],
                 ['BLOCOS ANALISADOS', String(visibleBlocks.length), '#334155']
             ]);
             const blockContainer = document.getElementById('report-blocks-summary');
-            let blocksHtml = '';
+            let blocksHtml = reportComparisonChart();
 
             visibleBlocks.forEach(bName => {
                 const bData = blockData[bName];
@@ -763,8 +814,6 @@
                     <div class="border border-slate-300 rounded-2xl p-4 bg-white space-y-3 shadow-sm">
                         ${reportMetricCards([
                             ['BLOCO', bName, '#065f46'],
-                            ['CICLO', bData.cycle || '-', '#334155'],
-                            ['PLANTADO', `${bData.totalPlanted.toLocaleString('pt-BR')} un`, '#065f46'],
                             ['PERDA DO BLOCO', `${bTotalLoss.toLocaleString('pt-BR')} un (${bPct}%)`, '#be123c']
                         ])}
                         <!-- Large photos followed by a full-width block chart -->
@@ -862,7 +911,7 @@
                 const pageHeight = pdf.internal.pageSize.getHeight();
                 const pageCount = Math.max(blocks.length, 1);
 
-                // Capture each block with all its causes, totals and chart together.
+                // Capture the comparison on its own page, then each complete block.
                 // This preserves rows and photos instead of slicing one tall image.
                 for (let index = 0; index < pageCount; index++) {
                     blocks.forEach((block, blockIndex) => {
@@ -879,20 +928,3 @@
                     pdf.text(`${index + 1} / ${pageCount}`, pageWidth - 10, pageHeight - 6, { align: 'right' });
                 }
                 pdf.save(`Relatorio_Analitico_Perdas_Brocolis_Paisagem_${new Date().toISOString().slice(0,10)}.pdf`);
-            } catch (error) {
-                console.error('Falha ao exportar PDF:', error);
-                alert('Não foi possível gerar o PDF do relatório. Tente novamente.');
-            } finally {
-                blocks.forEach(block => { block.style.display = ''; });
-                reportEl.classList.add('hidden');
-            }
-        }
-        function resetForm() {
-            allBlockNames.forEach(b => {
-                blockData[b].totalPlanted = 1000;
-                blockData[b].cycle = 'Ciclo 1';
-                blockData[b].activeCausesList = ['pulgao'];
-                lossCauses.forEach(c => {
-                    blockData[b].causes[c.id].quantity = 0;
-                    blockData[b].causes[c.id].photos = [null, null];
-                });
