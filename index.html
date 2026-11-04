@@ -33,6 +33,11 @@
         #pdf-report-template h2 { font-size: 20px; color: #065f46; padding: 12px 0; letter-spacing: 1px; }
         #report-blocks-summary { display: flex; flex-direction: column; gap: 24px; }
         #report-blocks-summary > div { padding: 24px; box-shadow: none; border: 2px solid #d1fae5; border-radius: 20px; }
+        #report-blocks-summary > .report-comparison { border: 0; border-radius: 0; padding: 0; box-shadow: none; }
+        #report-blocks-summary > .report-comparison.comparison-pdf { box-sizing: border-box; display: flex; flex-direction: column; gap: 16px; width: 1600px; padding: 16px; }
+        .comparison-pdf > * { margin: 0 !important; flex-shrink: 0; }
+        .comparison-pdf .report-chart { flex: 1; min-height: 0; display: flex; align-items: flex-start; }
+        .comparison-pdf .report-chart img { height: 100%; object-fit: contain; object-position: top; }
         #report-blocks-summary > div > .flex { gap: 12px; align-items: center; min-height: 44px; }
         #report-blocks-summary > div > .flex > div { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
         #report-blocks-summary > div > .flex > .text-right { justify-content: flex-end; }
@@ -61,6 +66,13 @@
         .report-metrics { display: block; width: 100%; height: auto; }
         .report-chart { width: 100%; overflow: hidden; }
         .report-chart img { display: block; width: 100%; height: auto; }
+        #report-blocks-summary > .export-section { box-sizing: border-box; width: 1600px; padding: 16px; }
+        #report-blocks-summary > .report-comparison.export-section { padding: 0; }
+        #report-blocks-summary > .export-section td { padding: 8px 10px; }
+        #report-blocks-summary > .export-section td img { width: var(--export-photo-width); min-width: var(--export-photo-width); max-width: var(--export-photo-width); height: var(--export-photo-height); min-height: var(--export-photo-height); max-height: var(--export-photo-height); }
+        #report-blocks-summary > .export-section td .inline-block { width: var(--export-photo-width); flex-basis: var(--export-photo-width); }
+        .export-section .report-chart img { max-height: 300px; object-fit: contain; }
+        .report-comparison.export-section .report-chart img { max-height: none; }
         @media print {
             .no-print { display: none !important; }
         }
@@ -708,7 +720,7 @@
                 }).join('');
                 const value = entry.total.toLocaleString('pt-BR');
                 const valueFit = value.length * 13 > slotWidth - 8 ? `textLength="${slotWidth - 8}" lengthAdjust="spacingAndGlyphs"` : '';
-                return `${index === 0 ? `<rect x="${center - slotWidth * .44}" y="62" width="${slotWidth * .88}" height="500" rx="14" fill="#ecfdf5"/>` : ''}${bars}<text x="${center}" y="${y - 14}" text-anchor="middle" font-size="24" font-weight="800" fill="#0f172a" ${valueFit}>${value}</text><text x="${center}" y="516" text-anchor="middle" font-size="${entries.length > 10 ? 17 : 23}" font-weight="700" fill="#334155">${entry.name}</text><text x="${center}" y="546" text-anchor="middle" font-size="${entries.length > 10 ? 17 : 21}" font-weight="700" fill="#047857">${(entry.total / total * 100).toFixed(1)}%</text>`;
+                return `${bars}<text x="${center}" y="${y - 14}" text-anchor="middle" font-size="24" font-weight="800" fill="#0f172a" ${valueFit}>${value}</text><text x="${center}" y="516" text-anchor="middle" font-size="${entries.length > 10 ? 17 : 23}" font-weight="700" fill="#334155">${entry.name}</text><text x="${center}" y="546" text-anchor="middle" font-size="${entries.length > 10 ? 17 : 21}" font-weight="700" fill="#047857">${(entry.total / total * 100).toFixed(1)}%</text>`;
             }).join('');
             const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1460" height="${height}" viewBox="0 0 1460 ${height}" font-family="Arial, sans-serif"><text x="110" y="32" font-size="20" font-weight="700" fill="#475569">CABEÇAS PERDIDAS</text>${entries.length ? ticks + rows + legend : '<text x="730" y="320" text-anchor="middle" font-size="24" fill="#64748b">Sem perdas registradas para comparar</text>'}</svg>`;
             const insights = reportMetricCards([
@@ -716,7 +728,7 @@
                 ['BLOCO COM MAIOR PERDA', entries.length ? `${entries[0].name} · ${(entries[0].total / total * 100).toFixed(1)}%` : 'Sem perdas', '#065f46'],
                 ['PRINCIPAL CAUSA', causeTotals.length ? `${causeTotals[0].label} · ${(causeTotals[0].total / total * 100).toFixed(1)}%` : 'Sem perdas', '#334155']
             ]);
-            return `<div class="bg-white space-y-3"><h3 style="font-size:28px;font-weight:800;color:#065f46">Panorama comparativo das perdas</h3><p style="font-size:18px;line-height:1.6;color:#475569">Blocos com perdas, ordenados do maior para o menor total. A altura de cada coluna representa a quantidade perdida e as cores identificam as causas. Os percentuais abaixo dos blocos indicam sua participação nas perdas gerais.</p>${insights}<div class="report-chart"><img alt="Colunas verticais comparando perdas por bloco, composição por causa, totais e participação nas perdas gerais" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}"></div></div>`;
+            return `<div class="report-comparison bg-white space-y-3"><h3 style="font-size:28px;font-weight:800;color:#065f46">Panorama comparativo das perdas</h3><p style="font-size:18px;line-height:1.6;color:#475569">Blocos com perdas, ordenados do maior para o menor total. A altura de cada coluna representa a quantidade perdida e as cores identificam as causas. Os percentuais abaixo dos blocos indicam sua participação nas perdas gerais.</p>${insights}<div class="report-chart"><img alt="Colunas verticais comparando perdas por bloco, composição por causa, totais e participação nas perdas gerais" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}"></div></div>`;
         }
 
         function prepareReportData() {
@@ -880,16 +892,46 @@
             });
         }
 
+        async function captureReportPage(section) {
+            const oldStyle = section.getAttribute('style');
+            const photoHeight = section.querySelectorAll('tbody tr').length > 3 ? 96 : 180;
+            section.classList.add('export-section');
+            section.style.setProperty('--export-photo-height', `${photoHeight}px`);
+            section.style.setProperty('--export-photo-width', `${Math.round(photoHeight * 330 / 248)}px`);
+            try {
+                const content = await captureReport(section);
+                const page = document.createElement('canvas');
+                page.width = 3200;
+                page.height = Math.round(page.width * 289 / 412);
+                const context = page.getContext('2d');
+                context.fillStyle = '#ffffff';
+                context.fillRect(0, 0, page.width, page.height);
+                const scale = Math.min(page.width / content.width, page.height / content.height);
+                const width = content.width * scale;
+                const height = content.height * scale;
+                context.drawImage(content, (page.width - width) / 2, 0, width, height);
+                return page;
+            } finally {
+                section.classList.remove('export-section');
+                if (oldStyle === null) section.removeAttribute('style');
+                else section.setAttribute('style', oldStyle);
+            }
+        }
+
         async function exportJPEG() {
             const reportEl = document.getElementById('pdf-report-template');
             try {
                 prepareReportData();
                 reportEl.classList.remove('hidden');
-                const canvas = await captureReport(reportEl);
+                const sections = Array.from(document.getElementById('report-blocks-summary').children);
+                for (let index = 0; index < sections.length; index++) {
+                const canvas = await captureReportPage(sections[index]);
                 const link = document.createElement('a');
-                link.download = `Relatorio_Analitico_Perdas_Brocolis_${new Date().toISOString().slice(0,10)}.jpg`;
+                const label = index === 0 ? 'Comparativo' : visibleBlocks[index - 1].replace(/\s+/g, '_');
+                link.download = `Relatorio_Perdas_${String(index + 1).padStart(2, '0')}_${label}_${new Date().toISOString().slice(0,10)}.jpg`;
                 link.href = canvas.toDataURL('image/jpeg', 0.95);
                 link.click();
+                }
             } catch (error) {
                 console.error('Falha ao exportar JPEG:', error);
                 alert('Não foi possível gerar a imagem do relatório. Tente novamente.');
@@ -911,20 +953,41 @@
                 const pageHeight = pdf.internal.pageSize.getHeight();
                 const pageCount = Math.max(blocks.length, 1);
 
-                // Capture the comparison on its own page, then each complete block.
-                // This preserves rows and photos instead of slicing one tall image.
+                // Each section gets exactly one page; captureReportPage fits it proportionally.
                 for (let index = 0; index < pageCount; index++) {
-                    blocks.forEach((block, blockIndex) => {
-                        block.style.display = blockIndex === index ? '' : 'none';
-                    });
-                    const canvas = await captureReport(reportEl);
+                    const canvas = await captureReportPage(blocks[index]);
                     if (index > 0) pdf.addPage();
-                    const ratio = Math.min((pageWidth - 20) / canvas.width, (pageHeight - 24) / canvas.height);
-                    const width = canvas.width * ratio;
-                    const height = canvas.height * ratio;
-                    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', (pageWidth - width) / 2, 10, width, height);
+                    const width = pageWidth - 8;
+                    const ratio = Math.min(width / canvas.width, (pageHeight - 8) / canvas.height);
+                    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 4, 4, canvas.width * ratio, canvas.height * ratio);
                     pdf.setFontSize(9);
                     pdf.setTextColor(100, 116, 139);
-                    pdf.text(`${index + 1} / ${pageCount}`, pageWidth - 10, pageHeight - 6, { align: 'right' });
+                    pdf.text(`${index + 1} / ${pageCount}`, pageWidth - 4, pageHeight - 1, { align: 'right' });
                 }
                 pdf.save(`Relatorio_Analitico_Perdas_Brocolis_Paisagem_${new Date().toISOString().slice(0,10)}.pdf`);
+            } catch (error) {
+                console.error('Falha ao exportar PDF:', error);
+                alert('Não foi possível gerar o PDF do relatório. Tente novamente.');
+            } finally {
+                blocks.forEach(block => { block.style.display = ''; });
+                reportEl.classList.add('hidden');
+            }
+        }
+        function resetForm() {
+            allBlockNames.forEach(b => {
+                blockData[b].totalPlanted = 1000;
+                blockData[b].cycle = 'Ciclo 1';
+                blockData[b].activeCausesList = ['pulgao'];
+                lossCauses.forEach(c => {
+                    blockData[b].causes[c.id].quantity = 0;
+                    blockData[b].causes[c.id].photos = [null, null];
+                });
+            });
+            visibleBlocks = [allBlockNames[0]];
+            renderActiveBlockPills();
+            renderBlocks();
+            updateCalculations();
+        }
+    </script>
+</body>
+</html>
