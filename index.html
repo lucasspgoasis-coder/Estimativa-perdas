@@ -749,14 +749,12 @@
                 if (!reportRows.length) {
                     reportRows.push('<tr><td colspan="4">Nenhuma causa registrada para este bloco.</td></tr>');
                 }
-                const partCount = reportRows.length;
-                for (let part = 0; part < partCount; part++) {
-                const rowsHtml = reportRows.slice(part, part + 1).join('');
+                const rowsHtml = reportRows.join('');
                 blocksHtml += `
                     <div class="border border-slate-300 rounded-2xl p-4 bg-white space-y-3 shadow-sm">
                         ${reportMetricCards([
                             ['BLOCO', bName, '#065f46'],
-                            [partCount > 1 ? `CICLO · PARTE ${part + 1}/${partCount}` : 'CICLO', bData.cycle || '-', '#334155'],
+                            ['CICLO', bData.cycle || '-', '#334155'],
                             ['PLANTADO', `${bData.totalPlanted.toLocaleString('pt-BR')} un`, '#065f46'],
                             ['PERDA DO BLOCO', `${bTotalLoss.toLocaleString('pt-BR')} un (${bPct}%)`, '#be123c']
                         ])}
@@ -779,7 +777,7 @@
                                 </table>
                             </div>
 
-                            <!-- Chart with a fixed viewport for reliable export -->
+                            <!-- One chart per block, after all causes and photos. -->
                             <div class="col-span-5 bg-slate-50 p-3 rounded-xl border border-slate-200">
                                 <p class="text-[10px] font-black text-slate-800 mb-2 uppercase text-center border-b border-slate-200 pb-1 flex items-center justify-center gap-1">
                                     Perdas por causa
@@ -791,7 +789,6 @@
                         </div>
                     </div>
                 `;
-                }
             });
 
             blockContainer.innerHTML = blocksHtml;
@@ -856,7 +853,7 @@
                 const pageHeight = pdf.internal.pageSize.getHeight();
                 const pageCount = Math.max(blocks.length, 1);
 
-                // Capture one cause per section, with large photos and a full-width chart.
+                // Capture each block with all its causes, totals and chart together.
                 // This preserves rows and photos instead of slicing one tall image.
                 for (let index = 0; index < pageCount; index++) {
                     blocks.forEach((block, blockIndex) => {
